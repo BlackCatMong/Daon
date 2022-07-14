@@ -151,3 +151,4 @@ crashlytics-build.properties
 *.pref
 *.pref
 *.apk
+*.aab
