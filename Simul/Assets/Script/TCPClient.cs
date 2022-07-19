@@ -27,7 +27,7 @@ public class TCPClient : MonoBehaviour
 	}
 
 	Thread m_Thread = new Thread(StartClient);
-	private const int m_Port = 7000;
+	private const int m_Port = 7001;
 	private static ManualResetEvent m_ConnectDone = new ManualResetEvent(false);
 	private static ManualResetEvent m_SendDone = new ManualResetEvent(false);
 	private static ManualResetEvent m_ReceiveDone = new ManualResetEvent(false);
@@ -38,13 +38,13 @@ public class TCPClient : MonoBehaviour
 	// Start is called before the first frame update
 	void Start()
 	{
-		m_Thread.Start();
+		InvokeRepeating("SendTest", 10.0f, 2.0f);
+		Debug.Log("test");
 	}
 
 	// Update is called once per frame
 	void Update()
 	{
-		
 	}
 
 	private static void StartClient()
@@ -56,19 +56,19 @@ public class TCPClient : MonoBehaviour
 			IPHostEntry ipHostInfo = Dns.GetHostEntry(HostNameCheckIp);
 			IPAddress iPAddress = ipHostInfo.AddressList[0];
 			IPEndPoint remoteEP = new IPEndPoint(iPAddress, m_Port);
-
 			m_Client = new Socket(iPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			m_Client.BeginConnect(remoteEP, new System.AsyncCallback(ConnectCallback), m_Client);
 			m_ConnectDone.WaitOne();
 
-			Send(m_Client, "Test <EOF>");
+			Send(m_Client, "Sumul Test <EOF>");
 			m_SendDone.WaitOne();
 
 			Receive(m_Client);
 			m_ReceiveDone.WaitOne();
 
-			Debug.Log("Response received : " + response);
 
+			Debug.Log("Response received : " + response);
+			response = string.Empty;
 			m_Client.Shutdown(SocketShutdown.Both);
 			m_Client.Close();
 		}
@@ -85,6 +85,29 @@ public class TCPClient : MonoBehaviour
 			client.EndConnect(ar);
 			Debug.Log("Socket Connect To : " + client.RemoteEndPoint.ToString());
 			m_ConnectDone.Set();
+		}
+		catch (Exception e)
+		{
+			Debug.Log(e.ToString());
+		}
+	}
+	private static void Send(Socket client, string data)
+	{
+		byte[] byteData = Encoding.ASCII.GetBytes(data);
+
+		client.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), client);
+
+	}
+	private static void SendCallback(IAsyncResult ar)
+	{
+		try
+		{
+			Socket client = (Socket)ar.AsyncState;
+
+			int bytesSent = client.EndSend(ar);
+			Debug.Log("sned " + bytesSent + "bytes to setver ");
+
+			m_SendDone.Set();
 		}
 		catch (Exception e)
 		{
@@ -127,49 +150,18 @@ public class TCPClient : MonoBehaviour
 				{
 					response = state.m_SB.ToString();
 				}
-				m_ReceiveDone.Set();
 			}
+			m_ReceiveDone.Set();
 		}
 		catch (Exception e)
 		{
 			Debug.Log(e.ToString());
 		}
 	}
-	private static void Send(Socket client, string data)
-	{
-		byte[] byteData = Encoding.ASCII.GetBytes(data);
 
-		client.BeginSend(byteData, 0, byteData.Length, 0, new AsyncCallback(SendCallback), client);
-
-	}
-	private static void SendCallback(IAsyncResult ar)
+	private void SendTest()
 	{
-		try
-		{
-			Socket client = (Socket)ar.AsyncState;
-
-			int bytesSent = client.EndSend(ar);
-			Debug.Log("sned " + bytesSent + "bytes to setver ");
-
-			m_SendDone.Set();
-		}
-		catch (Exception e)
-		{
-			Debug.Log(e.ToString());
-		}
-	}
-	private static void CloseClient(Socket clietn)
-	{
-		clietn.Shutdown(SocketShutdown.Both);
-		clietn.Close();
-	}
-	public void TcpMessageSend()
-	{
-		//if (str.IndexOf("<EOF>") <= -1)
-		//{
-		//	str += "<EOF>";
-		//}
-		//Send(m_Client, str);
+		m_Thread.Start();
 	}
 
 }

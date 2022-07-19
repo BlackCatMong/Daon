@@ -38,7 +38,7 @@ public class TCPServer : MonoBehaviour
 		//IPAddress iPAddress = iPHostInfo.AddressList[0];
 		//IPEndPoint localEndPoint = new IPEndPoint(iPAddress, 7000);
 		IPAddress iPAddress = IPAddress.Parse("175.214.78.116");
-		IPEndPoint localEndPoint = new IPEndPoint(iPAddress, 7000);
+		IPEndPoint localEndPoint = new IPEndPoint(iPAddress, 7001);
 		Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
 
 		try

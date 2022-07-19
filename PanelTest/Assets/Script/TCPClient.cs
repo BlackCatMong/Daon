@@ -9,6 +9,18 @@ using System;
 
 public class TCPClient : MonoBehaviour
 {
+	private static TCPClient tcpClient = null;
+	private TCPClient() { }
+
+	public static TCPClient getInstance()
+	{
+		if(tcpClient == null)
+		{
+			tcpClient = new TCPClient();
+		}
+		return tcpClient;
+	}
+
 	public class StateObject
 	{
 		public Socket m_WorkSocket = null;
@@ -26,7 +38,10 @@ public class TCPClient : MonoBehaviour
 		return m_TcpClient;
 	}
 
-	Thread m_Thread = new Thread(StartClient);
+	static Thread m_StartThread = new Thread(StartClient);
+	static Thread m_ReceiveThread = new Thread(ReceiveThread);
+
+
 	private const int m_Port = 7000;
 	private static ManualResetEvent m_ConnectDone = new ManualResetEvent(false);
 	private static ManualResetEvent m_SendDone = new ManualResetEvent(false);
@@ -35,19 +50,25 @@ public class TCPClient : MonoBehaviour
 	private static string response = string.Empty;
 	static Socket m_Client;
 
+	public static float m_OldHorizental = 0.0f;
+	public static float m_OldVertical = 0.0f;
+	public static float horizental;
+	public static float Vertical;
+	public static bool m_ConnectCheck = false;
 	// Start is called before the first frame update
 	void Start()
 	{
-		m_Thread.Start();
-		InvokeRepeating("SendTest", 5.0f, 2.0f);
+		//InvokeRepeating("SendTest", 10.0f, 2.0f);
+		m_StartThread.Start();
 		Debug.Log("test");
+		//InvokeRepeating("GetJoyStickData", 0.1f, 0.1f);
 
 	}
 
 	// Update is called once per frame
 	void Update()
 	{
-		//InvokeRepeating("TcpMessageSend", 0.1f, 1f);
+		GetJoyStickData();
 	}
 
 	private static void StartClient()
@@ -59,27 +80,33 @@ public class TCPClient : MonoBehaviour
 			IPHostEntry ipHostInfo = Dns.GetHostEntry(HostNameCheckIp);
 			IPAddress iPAddress = ipHostInfo.AddressList[0];
 			IPEndPoint remoteEP = new IPEndPoint(iPAddress, m_Port);
-
 			m_Client = new Socket(iPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
 			m_Client.BeginConnect(remoteEP, new System.AsyncCallback(ConnectCallback), m_Client);
 			m_ConnectDone.WaitOne();
 
-			
-			Send(m_Client, "Test1 <EOF>");
-			m_SendDone.WaitOne();
+			m_ReceiveThread.Start();
+			m_ConnectCheck = true;
 
-
-			Receive(m_Client);
-			m_ReceiveDone.WaitOne();
-
-			Debug.Log("Response received : " + response);
-			response = string.Empty;
-			//m_Client.Shutdown(SocketShutdown.Both);
-			//m_Client.Close();
 		}
-		catch(Exception e)
+		catch (Exception e)
 		{
-			Debug.Log(e.ToString());
+			Debug.Log("Start Client => " + e.ToString());
+		}
+	}
+	private static void ReceiveThread()
+	{
+		try
+		{
+			while(true)
+			{
+				m_ReceiveDone.Reset();
+				Receive(m_Client);
+				m_ReceiveDone.WaitOne();
+				Debug.Log("Response received : " + response);
+			}
+		}catch(Exception e)
+		{
+			Debug.LogError("ReceiveThread Error -> " + e);
 		}
 	}
 	private static void ConnectCallback(IAsyncResult ar)
@@ -90,52 +117,10 @@ public class TCPClient : MonoBehaviour
 			client.EndConnect(ar);
 			Debug.Log("Socket Connect To : " + client.RemoteEndPoint.ToString());
 			m_ConnectDone.Set();
-		}catch(Exception e)
-		{
-			Debug.Log(e.ToString());
 		}
-	}
-	private static void Receive(Socket client)
-	{
-		try
+		catch (Exception e)
 		{
-			StateObject state = new StateObject();
-			state.m_WorkSocket = client;
-
-			client.BeginReceive(state.m_Bytes, 0, StateObject.m_BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
-		}
-		catch(Exception e)
-		{
-			Debug.Log(e.ToString());
-		}
-	}
-	private static void ReceiveCallback(IAsyncResult ar)
-	{
-		try
-		{
-
-			StateObject state = (StateObject)ar.AsyncState;
-			Socket client = (Socket)ar.AsyncState;
-
-			int bytesRead = client.EndReceive(ar);
-
-			if(bytesRead > 0)
-			{
-				state.m_SB.Append(Encoding.ASCII.GetString(state.m_Bytes, 0, bytesRead));
-
-				client.BeginReceive(state.m_Bytes, 0, StateObject.m_BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
-			}
-			else
-			{
-				if (state.m_SB.Length > 1)
-				{
-					response = state.m_SB.ToString();
-				}
-				m_ReceiveDone.Set();
-			}
-		}catch(Exception e)
-		{
-			Debug.Log(e.ToString());
+			Debug.Log("Connect Call Back -> " + e.ToString());
 		}
 	}
 	private static void Send(Socket client, string data)
@@ -149,27 +134,87 @@ public class TCPClient : MonoBehaviour
 	{
 		try
 		{
+			m_SendDone.Set();
 			Socket client = (Socket)ar.AsyncState;
 
 			int bytesSent = client.EndSend(ar);
 			Debug.Log("sned " + bytesSent + "bytes to setver ");
 
-			m_SendDone.Set();
-		}catch(Exception e )
+		}
+		catch (Exception e)
 		{
-			Debug.Log(e.ToString());
+			Debug.Log("Send Call Back -> " + e.ToString());
 		}
 	}
-	
-	private void SendTest()
+	private static void Receive(Socket client)
 	{
-		Send(m_Client, "Test2 <EOF>");
-		m_SendDone.WaitOne();
+		try
+		{
+			StateObject state = new StateObject();
+			state.m_WorkSocket = client;
 
-		Receive(m_Client);
-		m_ReceiveDone.WaitOne();
-		Debug.Log("Send Test Receive -> " + response);
-		response = string.Empty;
+			client.BeginReceive(state.m_Bytes, 0, StateObject.m_BufferSize, 0, new AsyncCallback(ReceiveCallback), state);
+		}
+		catch (Exception e)
+		{
+			Debug.Log("Receive -> " + e.ToString());
+		}
+	}
+	private static void ReceiveCallback(IAsyncResult ar)
+	{
+		try
+		{
+			StateObject state = (StateObject)ar.AsyncState;
+			Socket client = state.m_WorkSocket;
+
+			int bytesRead = client.EndReceive(ar);
+
+			if (bytesRead > 0)
+			{
+				Debug.Log("Byte Read Length -> " + bytesRead);
+				state.m_SB.Append(Encoding.ASCII.GetString(state.m_Bytes, 0, bytesRead));
+				response = state.m_SB.ToString();
+				m_ReceiveDone.Set();
+			}
+		}
+		catch (Exception e)
+		{
+			Debug.Log("Receive Call Back -> " + e.ToString());
+		}
 	}
 
+	private void SendTest()
+	{
+		Send(m_Client, "Send Test <EOF>");
+	}
+
+	public static void SendTCPMessage(string message)
+	{
+		if (string.IsNullOrEmpty(message))
+			return;
+
+		if(message.IndexOf("<EOF>") <= -1)
+		{
+			message += "<EOF>";
+		}
+		Send(m_Client, message);
+		Debug.Log(message);
+	}
+	public static void GetJoyStickData()
+	{
+		if(m_ConnectCheck)
+		{
+			horizental = SimpleInput.GetAxis("Horizontal");
+			Vertical = SimpleInput.GetAxis("Vertical");
+
+			SendTCPMessage("Horizental:" + horizental + "/" + "Vertical:" + Vertical + "/");
+			//if (horizental != m_OldHorizental || Vertical != m_OldVertical ||
+			//	horizental == 1 || horizental == -1 || Vertical == 1 || Vertical == -1)
+			//{
+			//	m_OldVertical = Vertical;
+			//	m_OldHorizental = horizental;
+			//
+			//}
+		}
+	}
 }

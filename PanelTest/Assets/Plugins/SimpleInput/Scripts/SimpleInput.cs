@@ -243,7 +243,7 @@ public class SimpleInput : MonoBehaviour
 		// or using a dummy (temporary) AxisInput
 		TrackAxis( axis );
 		return 0f;
-	}
+	}	
 
 	public static float GetAxisRaw( string axis )
 	{

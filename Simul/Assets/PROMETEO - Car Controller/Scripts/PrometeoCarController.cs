@@ -142,7 +142,7 @@ public class PrometeoCarController : MonoBehaviour
       float driftingAxis;
       float localVelocityZ;
       float localVelocityX;
-      bool deceleratingCar;
+      public bool deceleratingCar;
       bool touchControlsSetup = false;
       /*
       The following variables are used to store information about sideways friction of the wheels (such as
@@ -157,6 +157,12 @@ public class PrometeoCarController : MonoBehaviour
       float RLWextremumSlip;
       WheelFrictionCurve RRwheelFriction;
       float RRWextremumSlip;
+
+
+	public bool m_TcpFoward = false;
+	public bool m_TcpReverse = false;
+	public bool m_TcpLeft = false;
+	public bool m_TcpRight = false;
 
     // Start is called before the first frame update
     void Start()
@@ -259,7 +265,7 @@ public class PrometeoCarController : MonoBehaviour
             Debug.LogWarning(ex);
           }
         }
-
+		InvokeRepeating("TCPFlagFalse", 0.1f, 0.5f);
     }
 
     // Update is called once per frame
@@ -267,7 +273,7 @@ public class PrometeoCarController : MonoBehaviour
     {
 
       //CAR DATA
-
+	  
       // We determine the speed of the car.
       carSpeed = (2 * Mathf.PI * frontLeftCollider.radius * frontLeftCollider.rpm * 60) / 1000;
       // Save the local velocity of the car in the x axis. Used to know if the car is drifting.
@@ -364,10 +370,30 @@ public class PrometeoCarController : MonoBehaviour
         }
 
       }
+		if (m_TcpFoward)
+		{
+			CancelInvoke("DecelerateCar");
+			deceleratingCar = false;
+			GoForward();
+		}
+		if (m_TcpReverse)
+		{
+			CancelInvoke("DecelerateCar");
+			deceleratingCar = false;
+			GoReverse();
+		}
+		if (m_TcpLeft)
+		{
+			TurnLeft();
+		}
+		if (m_TcpRight)
+		{
+			TurnRight();
+		}
 
 
-      // We call the method AnimateWheelMeshes() in order to match the wheel collider movements with the 3D meshes of the wheels.
-      AnimateWheelMeshes();
+		// We call the method AnimateWheelMeshes() in order to match the wheel collider movements with the 3D meshes of the wheels.
+		AnimateWheelMeshes();
 
     }
 
@@ -497,8 +523,8 @@ public class PrometeoCarController : MonoBehaviour
 
     // This method apply positive torque to the wheels in order to go forward.
     public void GoForward(){
-      //If the forces aplied to the rigidbody in the 'x' asis are greater than
-      //3f, it means that the car is losing traction, then the car will start emitting particle systems.
+		//If the forces aplied to the rigidbody in the 'x' asis are greater than
+		//3f, it means that the car is losing traction, then the car will start emitting particle systems.
       if(Mathf.Abs(localVelocityX) > 2.5f){
         isDrifting = true;
         DriftCarPS();
@@ -506,11 +532,12 @@ public class PrometeoCarController : MonoBehaviour
         isDrifting = false;
         DriftCarPS();
       }
-      // The following part sets the throttle power to 1 smoothly.
-      throttleAxis = throttleAxis + (Time.deltaTime * 3f);
-      if(throttleAxis > 1f){
-        throttleAxis = 1f;
-      }
+		// The following part sets the throttle power to 1 smoothly.
+		throttleAxis = throttleAxis + (Time.deltaTime * 3f);
+		if(throttleAxis > 1f){
+		  throttleAxis = 1f;
+
+		}
       //If the car is going backwards, then apply brakes in order to avoid strange
       //behaviours. If the local velocity in the 'z' axis is less than -1f, then it
       //is safe to apply positive torque to go forward.
@@ -533,7 +560,7 @@ public class PrometeoCarController : MonoBehaviour
           // could be a bit higher than expected.
     			frontLeftCollider.motorTorque = 0;
     			frontRightCollider.motorTorque = 0;
-          rearLeftCollider.motorTorque = 0;
+				rearLeftCollider.motorTorque = 0;
     			rearRightCollider.motorTorque = 0;
     		}
       }
@@ -577,7 +604,7 @@ public class PrometeoCarController : MonoBehaviour
           // could be a bit higher than expected.
     			frontLeftCollider.motorTorque = 0;
     			frontRightCollider.motorTorque = 0;
-          rearLeftCollider.motorTorque = 0;
+				rearLeftCollider.motorTorque = 0;
     			rearRightCollider.motorTorque = 0;
     		}
       }
@@ -770,5 +797,35 @@ public class PrometeoCarController : MonoBehaviour
         driftingAxis = 0f;
       }
     }
+
+	public void TCPFlagTrue(string str)
+	{
+		Debug.Log("tcp flag true -> " + str);
+		if (str == "W")
+		{
+			m_TcpFoward = true;
+		}
+		if (str == "S")
+		{
+			m_TcpReverse = true;
+		}
+		if (str == "D")
+		{
+			m_TcpRight = true;
+		}
+		if (str == "A")
+		{
+			m_TcpLeft = true;
+		}
+
+		
+	}
+	public void TCPFlagFalse()
+	{
+		m_TcpFoward = false;
+		m_TcpLeft = false;
+		m_TcpReverse = false;
+		m_TcpRight = false;
+	}
 
 }
