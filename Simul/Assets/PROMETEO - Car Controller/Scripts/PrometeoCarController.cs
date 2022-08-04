@@ -163,6 +163,7 @@ public class PrometeoCarController : MonoBehaviour
 	public bool m_TcpReverse = false;
 	public bool m_TcpLeft = false;
 	public bool m_TcpRight = false;
+	public float vertical = 0.0f;
 
     // Start is called before the first frame update
     void Start()
@@ -265,7 +266,7 @@ public class PrometeoCarController : MonoBehaviour
             Debug.LogWarning(ex);
           }
         }
-		InvokeRepeating("TCPFlagFalse", 0.1f, 0.5f);
+		InvokeRepeating("TCPFlagFalse", 0.1f, 2f);
     }
 
     // Update is called once per frame
@@ -384,11 +385,11 @@ public class PrometeoCarController : MonoBehaviour
 		}
 		if (m_TcpLeft)
 		{
-			TurnLeft();
+			TurnLeft(vertical);
 		}
 		if (m_TcpRight)
 		{
-			TurnRight();
+			TurnRight(vertical);
 		}
 
 
@@ -470,9 +471,27 @@ public class PrometeoCarController : MonoBehaviour
       frontRightCollider.steerAngle = Mathf.Lerp(frontRightCollider.steerAngle, steeringAngle, steeringSpeed);
     }
 
-    //The following method takes the front car wheels to their default position (rotation = 0). The speed of this movement will depend
-    // on the steeringSpeed variable.
-    public void ResetSteeringAngle(){
+	//The following method turns the front car wheels to the left. The speed of this movement will depend on the steeringSpeed variable.
+	public void TurnLeft(float receiveAxis)
+	{
+		
+		var steeringAngle = receiveAxis * maxSteeringAngle;
+		frontLeftCollider.steerAngle = Mathf.Lerp(frontLeftCollider.steerAngle, steeringAngle, steeringSpeed);
+		frontRightCollider.steerAngle = Mathf.Lerp(frontRightCollider.steerAngle, steeringAngle, steeringSpeed);
+	}
+
+	//The following method turns the front car wheels to the right. The speed of this movement will depend on the steeringSpeed variable.
+	public void TurnRight(float receiveAxis)
+	{
+		var steeringAngle = receiveAxis * maxSteeringAngle;
+		frontLeftCollider.steerAngle = Mathf.Lerp(frontLeftCollider.steerAngle, steeringAngle, steeringSpeed);
+		frontRightCollider.steerAngle = Mathf.Lerp(frontRightCollider.steerAngle, steeringAngle, steeringSpeed);
+	}
+
+
+	//The following method takes the front car wheels to their default position (rotation = 0). The speed of this movement will depend
+	// on the steeringSpeed variable.
+	public void ResetSteeringAngle(){
       if(steeringAxis < 0f){
         steeringAxis = steeringAxis + (Time.deltaTime * 10f * steeringSpeed);
       }else if(steeringAxis > 0f){
@@ -798,7 +817,7 @@ public class PrometeoCarController : MonoBehaviour
       }
     }
 
-	public void TCPFlagTrue(string str)
+	public void TCPFlagTrue(string str, float axis)
 	{
 		Debug.Log("tcp flag true -> " + str);
 		if (str == "W")
@@ -812,10 +831,12 @@ public class PrometeoCarController : MonoBehaviour
 		if (str == "D")
 		{
 			m_TcpRight = true;
+			vertical = axis;
 		}
 		if (str == "A")
 		{
 			m_TcpLeft = true;
+			vertical = axis;
 		}
 
 		

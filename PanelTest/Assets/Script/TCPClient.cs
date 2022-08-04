@@ -6,6 +6,7 @@ using System.Net;
 using System.Text;
 using System.Threading;
 using System;
+using TMPro;
 
 public class TCPClient : MonoBehaviour
 {
@@ -42,7 +43,7 @@ public class TCPClient : MonoBehaviour
 	static Thread m_ReceiveThread = new Thread(ReceiveThread);
 
 
-	private const int m_Port = 7000;
+	private static int m_Port = 6001;
 	private static ManualResetEvent m_ConnectDone = new ManualResetEvent(false);
 	private static ManualResetEvent m_SendDone = new ManualResetEvent(false);
 	private static ManualResetEvent m_ReceiveDone = new ManualResetEvent(false);
@@ -54,15 +55,32 @@ public class TCPClient : MonoBehaviour
 	public static float m_OldVertical = 0.0f;
 	public static float horizental;
 	public static float Vertical;
-	public static bool m_ConnectCheck = false;
+	public static bool m_SendCheck = false;
+	public static int m_NAKCount = 0;
+	public static int m_NAKLimitCount = 10;
+	public static string m_IP;
+	public TMP_InputField m_TextMesh;
+	public static TMP_InputField m_TextMeshStatic;
+	
+	public TMP_InputField m_TextMeshPort;
+	public static TMP_InputField m_TextMeshStaticPort;
+
+	public TMP_Text M_Speed;
+	static TMP_Text M_SpeedStatic;
+
 	// Start is called before the first frame update
 	void Start()
 	{
+		
 		//InvokeRepeating("SendTest", 10.0f, 2.0f);
-		m_StartThread.Start();
+		m_IP = "175.214.78.116";
+		m_TextMesh.text = m_IP;
+		m_TextMeshPort.text = m_Port.ToString();
+		M_SpeedStatic = M_Speed;
 		Debug.Log("test");
-		//InvokeRepeating("GetJoyStickData", 0.1f, 0.1f);
-
+		m_TextMeshStatic = m_TextMesh;
+		m_TextMeshStaticPort = m_TextMeshPort;
+		InvokeRepeating("SendFlagTrue", 20f, 2f);
 	}
 
 	// Update is called once per frame
@@ -75,38 +93,27 @@ public class TCPClient : MonoBehaviour
 	{
 		try
 		{
-			string ip = "175.214.78.116";
-			IPAddress HostNameCheckIp = IPAddress.Parse(ip);
+			m_IP = m_TextMeshStatic.text;
+			m_Port = int.Parse(m_TextMeshStaticPort.text);
+			//string ip = "192.168.185.44";
+			IPAddress HostNameCheckIp = IPAddress.Parse(m_IP);
 			IPHostEntry ipHostInfo = Dns.GetHostEntry(HostNameCheckIp);
 			IPAddress iPAddress = ipHostInfo.AddressList[0];
 			IPEndPoint remoteEP = new IPEndPoint(iPAddress, m_Port);
 			m_Client = new Socket(iPAddress.AddressFamily, SocketType.Stream, ProtocolType.Tcp);
+
 			m_Client.BeginConnect(remoteEP, new System.AsyncCallback(ConnectCallback), m_Client);
 			m_ConnectDone.WaitOne();
-
-			m_ReceiveThread.Start();
-			m_ConnectCheck = true;
+			if (m_Client.Connected)
+			{
+				m_ReceiveThread.Start();
+				Debug.Log("m_Client.Connected");
+			}
 
 		}
 		catch (Exception e)
 		{
 			Debug.Log("Start Client => " + e.ToString());
-		}
-	}
-	private static void ReceiveThread()
-	{
-		try
-		{
-			while(true)
-			{
-				m_ReceiveDone.Reset();
-				Receive(m_Client);
-				m_ReceiveDone.WaitOne();
-				Debug.Log("Response received : " + response);
-			}
-		}catch(Exception e)
-		{
-			Debug.LogError("ReceiveThread Error -> " + e);
 		}
 	}
 	private static void ConnectCallback(IAsyncResult ar)
@@ -121,6 +128,26 @@ public class TCPClient : MonoBehaviour
 		catch (Exception e)
 		{
 			Debug.Log("Connect Call Back -> " + e.ToString());
+		}
+	}
+	private static void ReceiveThread()
+	{
+		try
+		{
+			while (true)
+			{
+				if (m_Client.Connected)
+				{
+					m_ReceiveDone.Reset();
+					Receive(m_Client);
+					m_ReceiveDone.WaitOne();
+					Debug.Log("Response received : " + response);
+					//ReceiveDataCheck(response);
+				}
+			}
+		}catch(Exception e)
+		{
+			Debug.LogError("ReceiveThread Error -> " + e);
 		}
 	}
 	private static void Send(Socket client, string data)
@@ -174,6 +201,7 @@ public class TCPClient : MonoBehaviour
 				Debug.Log("Byte Read Length -> " + bytesRead);
 				state.m_SB.Append(Encoding.ASCII.GetString(state.m_Bytes, 0, bytesRead));
 				response = state.m_SB.ToString();
+				ReceiveDataCheck(response);
 				m_ReceiveDone.Set();
 			}
 		}
@@ -183,10 +211,7 @@ public class TCPClient : MonoBehaviour
 		}
 	}
 
-	private void SendTest()
-	{
-		Send(m_Client, "Send Test <EOF>");
-	}
+
 
 	public static void SendTCPMessage(string message)
 	{
@@ -202,19 +227,73 @@ public class TCPClient : MonoBehaviour
 	}
 	public static void GetJoyStickData()
 	{
-		if(m_ConnectCheck)
+		if (m_Client != null && m_Client.Connected)
 		{
 			horizental = SimpleInput.GetAxis("Horizontal");
 			Vertical = SimpleInput.GetAxis("Vertical");
 
-			SendTCPMessage("Horizental:" + horizental + "/" + "Vertical:" + Vertical + "/");
-			//if (horizental != m_OldHorizental || Vertical != m_OldVertical ||
-			//	horizental == 1 || horizental == -1 || Vertical == 1 || Vertical == -1)
-			//{
-			//	m_OldVertical = Vertical;
-			//	m_OldHorizental = horizental;
-			//
-			//}
+			//SendTCPMessage("Horizental:" + horizental + "/" + "Vertical:" + Vertical + "/");
+
+			if (horizental != m_OldHorizental || Vertical != m_OldVertical || m_SendCheck)
+			{
+				m_OldVertical = Vertical;
+				m_OldHorizental = horizental;
+				m_SendCheck = false;
+				SendTCPMessage("Horizental:" + horizental + "/" + "Vertical:" + Vertical + "/");
+
+			}
 		}
+	}
+
+	public static void ReceiveDataCheck(string str)
+	{
+		str = str.ToUpper();
+		if (str.IndexOf("RESULT") > -1)
+		{
+			if (str.IndexOf("ACK") > -1)
+			{
+				Debug.Log("ACK");
+				m_NAKCount = 0;
+			}
+			else if (str.IndexOf("NAK") > -1)
+			{
+				m_NAKCount++;
+				if (m_NAKLimitCount < m_NAKCount)
+				{
+					Debug.Log("m_NAKCount");
+					m_NAKCount = 0;
+					m_Client.Shutdown(SocketShutdown.Both);
+					m_Client.Close();
+				}
+				else
+					m_SendCheck = true;
+				Debug.Log("NAK");
+			}
+		}
+		else if (str.IndexOf("SPEED") > -1)
+		{
+			int getParsCnt = str.IndexOf(":") + 1;
+			int getEOFCnt = str.IndexOf("<EOF>");
+			string getSpeed = str.Substring(getParsCnt, getEOFCnt - getParsCnt);
+			Debug.Log("SPEED -> " + getSpeed);
+			M_SpeedStatic.text = getSpeed + " Km/h";
+		}
+	}
+	public void SendFlagTrue()
+	{
+		//Debug.Log("Repeating");
+		m_SendCheck = true;
+	}
+
+	public void BtnConnectClick()
+	{
+		if(m_Client == null || !m_Client.Connected)
+			m_StartThread.Start();
+	}
+	public void BtnDisConnectClick()
+	{
+		m_ConnectDone.Set();
+		m_Client.Shutdown(SocketShutdown.Both);
+		m_Client.Disconnect(true);
 	}
 }

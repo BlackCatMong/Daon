@@ -12447,6 +12447,14 @@ IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Socket_Blocking_icall_m822EDC3A6E0C02C73
 	using namespace il2cpp::icalls;
 	((Socket_Blocking_icall_m822EDC3A6E0C02C7351B93395BFC0D6103997323_ftn)System::System::Net::Sockets::Socket::Blocking_icall) (___socket0, ___block1, ___error2);
 }
+// System.Boolean System.Net.Sockets.Socket::get_Connected()
+IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR bool Socket_get_Connected_m6E61ADEB0124FB8D46AC1EDFDC268D3C9F7869C5 (Socket_t1F49472CDA22B581C29A258225ABF3ADA9DED67E* __this, const RuntimeMethod* method) 
+{
+	{
+		bool L_0 = __this->___is_connected_30;
+		return L_0;
+	}
+}
 // System.Void System.Net.Sockets.Socket::set_NoDelay(System.Boolean)
 IL2CPP_EXTERN_C IL2CPP_METHOD_ATTR void Socket_set_NoDelay_m1F7ACCEF219BB8745AB17F29CEA618088E0B2405 (Socket_t1F49472CDA22B581C29A258225ABF3ADA9DED67E* __this, bool ___value0, const RuntimeMethod* method) 
 {
