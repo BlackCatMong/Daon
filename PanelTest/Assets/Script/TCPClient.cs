@@ -8,6 +8,7 @@ using System.Threading;
 using System;
 using TMPro;
 
+
 public class TCPClient : MonoBehaviour
 {
 	private static TCPClient tcpClient = null;
